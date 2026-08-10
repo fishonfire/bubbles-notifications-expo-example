@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { getFCMToken } from 'bubbles_npm_get_device_token';
 import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
@@ -7,18 +8,6 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 
 const DEFAULT_ANDROID_CHANNEL_ID = 'default';
-
-function hasNotificationPermission(settings: Notifications.NotificationPermissionsStatus) {
-  if (Platform.OS === 'ios') {
-    return (
-      settings.granted ||
-      settings.ios?.status === Notifications.IosAuthorizationStatus.AUTHORIZED ||
-      settings.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
-    );
-  }
-
-  return settings.granted;
-}
 
 function describePermission(settings: Notifications.NotificationPermissionsStatus) {
   if (Platform.OS === 'ios' && settings.ios?.status != null) {
@@ -36,37 +25,27 @@ async function getDevicePushTokenAsync() {
     });
   }
 
-  const existingSettings = await Notifications.getPermissionsAsync();
-  let currentSettings = existingSettings;
+  if (Platform.OS === 'web') {
+    throw new Error('FCM registration tokens are only available from a native Android app.');
+  }
 
-  if (!hasNotificationPermission(existingSettings)) {
-    currentSettings = await Notifications.requestPermissionsAsync({
+  const token = await getFCMToken({
+    requestPermissions: true,
+    permissionRequestOptions: {
       ios: {
         allowAlert: true,
         allowBadge: true,
         allowSound: true,
       },
-    });
-  }
+    },
+  });
 
-  if (!hasNotificationPermission(currentSettings)) {
-    throw new Error('Notification permission was not granted.');
-  }
-
-  if (Platform.OS === 'web') {
-    throw new Error('FCM registration tokens are only available from a native Android app.');
-  }
-
-  const token = await Notifications.getDevicePushTokenAsync();
-
-  if (token.type !== 'android') {
-    throw new Error(`Expected an Android device token but received ${token.type}.`);
-  }
+  const currentSettings = await Notifications.getPermissionsAsync();
 
   return {
-    token: typeof token.data === 'string' ? token.data : JSON.stringify(token.data),
+    token,
     permissionStatus: describePermission(currentSettings),
-    tokenType: token.type,
+    tokenType: 'fcm',
   };
 }
 
