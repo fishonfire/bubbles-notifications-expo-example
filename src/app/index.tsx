@@ -40,7 +40,7 @@ export default function HomeScreen() {
               Welcome to&nbsp;Expo
             </ThemedText>
             <ThemedText style={styles.subtitle} themeColor="textSecondary">
-              This screen now includes push notification setup so you can request permission and fetch the Expo push token.
+              This screen now includes push notification setup so you can request permission and fetch the Android FCM registration token.
             </ThemedText>
           </ThemedView>
 
