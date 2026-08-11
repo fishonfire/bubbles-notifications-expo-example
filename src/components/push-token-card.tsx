@@ -1,7 +1,7 @@
+import { DeviceClient } from 'bubbles-npm-user-app';
 import * as Notifications from 'expo-notifications';
-// import { getFCMToken } from 'bubbles-npm-get-device-token';
 import { useState } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -9,15 +9,9 @@ import { Spacing } from '@/constants/theme';
 
 const DEFAULT_ANDROID_CHANNEL_ID = 'default';
 
-// the npm package:
-// import * as Notifications from 'expo-notifications';
-// import { Platform } from 'react-native';
-
 export type SupportedPlatform = 'android' | 'ios';
 export type NativeTokenType = 'fcm' | 'apns';
-export type PermissionRequestOptions = Parameters<
-  typeof Notifications.requestPermissionsAsync
->[0];
+export type PermissionRequestOptions = Parameters<typeof Notifications.requestPermissionsAsync>[0];
 
 export interface GetDeviceTokenOptions {
   requestPermissions?: boolean;
@@ -40,9 +34,15 @@ function getCurrentPlatform(): SupportedPlatform {
   );
 }
 
-async function ensureNotificationPermissions(
-  options?: GetDeviceTokenOptions,
-): Promise<void> {
+function getDeviceApiBaseUrl() {
+  if (Platform.OS === 'android') {
+    return 'http://10.0.2.2:4000';
+  }
+
+  return 'http://localhost:4000';
+}
+
+async function ensureNotificationPermissions(options?: GetDeviceTokenOptions): Promise<void> {
   if (options?.requestPermissions === false) {
     return;
   }
@@ -78,9 +78,7 @@ export async function getDeviceToken(
   };
 }
 
-export async function getFCMToken(
-  options?: GetDeviceTokenOptions,
-): Promise<string> {
+export async function getFCMToken(options?: GetDeviceTokenOptions): Promise<string> {
   const platform = getCurrentPlatform();
 
   if (platform === 'ios') {
@@ -90,11 +88,8 @@ export async function getFCMToken(
   }
 
   const tokenResult = await getDeviceToken(options);
-  console.log("This is the token:")
-  console.log(tokenResult.token)
   return tokenResult.token;
 }
-// end of npm package
 
 function describePermission(settings: Notifications.NotificationPermissionsStatus) {
   if (Platform.OS === 'ios' && settings.ios?.status != null) {
@@ -102,6 +97,50 @@ function describePermission(settings: Notifications.NotificationPermissionsStatu
   }
 
   return settings.status;
+}
+
+async function syncDeviceWithApi({
+  authToken,
+  appId,
+  userId,
+  platform,
+  pushToken,
+  notificationsEnabled,
+  deviceId,
+}: {
+  authToken: string;
+  appId: string;
+  userId: string;
+  platform: SupportedPlatform;
+  pushToken: string;
+  notificationsEnabled: boolean;
+  deviceId: string | null;
+}) {
+  const client = new DeviceClient({
+    baseUrl: getDeviceApiBaseUrl(),
+    token: authToken,
+  });
+
+  const payload = {
+    app_id: appId,
+    user_id: userId,
+    platform,
+    push_token: pushToken,
+    notifications_enabled: notificationsEnabled,
+  };
+
+  if (deviceId) {
+    await client.updateDevice(deviceId, payload);
+    return { action: 'updated' as const, deviceId };
+  }
+
+  const createdDevice = await client.createDevice<Record<string, unknown>>(payload);
+  const createdDeviceId =
+    typeof createdDevice?.id === 'string' || typeof createdDevice?.id === 'number'
+      ? String(createdDevice.id)
+      : null;
+
+  return { action: 'created' as const, deviceId: createdDeviceId };
 }
 
 async function getDevicePushTokenAsync() {
@@ -133,11 +172,18 @@ async function getDevicePushTokenAsync() {
     token,
     permissionStatus: describePermission(currentSettings),
     tokenType: 'fcm',
+    platform: getCurrentPlatform(),
+    notificationsEnabled: currentSettings.granted,
   };
 }
 
 export function PushTokenCard() {
+  const [authToken, setAuthToken] = useState('');
+  const [appId, setAppId] = useState('');
+  const [userId, setUserId] = useState('');
   const [devicePushToken, setDevicePushToken] = useState<string | null>(null);
+  const [deviceId, setDeviceId] = useState<string | null>(null);
+  const [deviceSyncStatus, setDeviceSyncStatus] = useState<string | null>(null);
   const [tokenType, setTokenType] = useState<string>('android');
   const [permissionStatus, setPermissionStatus] = useState<string>('unknown');
   const [error, setError] = useState<string | null>(null);
@@ -146,14 +192,45 @@ export function PushTokenCard() {
   const handleGetToken = async () => {
     setIsLoading(true);
     setError(null);
+    setDeviceSyncStatus(null);
 
     try {
+      if (!authToken.trim()) {
+        throw new Error('Enter a bearer auth token first.');
+      }
+
+      if (!appId.trim()) {
+        throw new Error('Enter an app id first.');
+      }
+
+      if (!userId.trim()) {
+        throw new Error('Enter a user id first.');
+      }
+
       const result = await getDevicePushTokenAsync();
       setDevicePushToken(result.token);
       setTokenType(result.tokenType);
       setPermissionStatus(result.permissionStatus);
+
+      const syncResult = await syncDeviceWithApi({
+        authToken: authToken.trim(),
+        appId: appId.trim(),
+        userId: userId.trim(),
+        platform: result.platform,
+        pushToken: result.token,
+        notificationsEnabled: result.notificationsEnabled,
+        deviceId,
+      });
+
+      setDeviceId(syncResult.deviceId);
+      setDeviceSyncStatus(
+        syncResult.action === 'created'
+          ? syncResult.deviceId
+            ? 'Device created'
+            : 'Device created, but no device id was returned by the API.'
+          : 'Device updated',
+      );
     } catch (caughtError) {
-      setDevicePushToken(null);
       setError(caughtError instanceof Error ? caughtError.message : 'Failed to get the FCM registration token.');
     } finally {
       setIsLoading(false);
@@ -166,7 +243,7 @@ export function PushTokenCard() {
         <View style={styles.headerText}>
           <ThemedText type="subtitle">FCM registration token</ThemedText>
           <ThemedText themeColor="textSecondary">
-            Request notification permission and fetch the native Android device token used for Firebase Cloud Messaging.
+            Request notification permission, fetch the Android FCM token, and create or update the device in your API.
           </ThemedText>
         </View>
 
@@ -175,6 +252,45 @@ export function PushTokenCard() {
             <ThemedText type="smallBold">{isLoading ? 'Loading…' : 'Get token'}</ThemedText>
           </ThemedView>
         </Pressable>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <ThemedText type="smallBold">Bearer auth token</ThemedText>
+        <TextInput
+          autoCapitalize="none"
+          autoCorrect={false}
+          onChangeText={setAuthToken}
+          placeholder="Paste auth token here"
+          placeholderTextColor="#8A8F98"
+          style={styles.input}
+          value={authToken}
+        />
+
+        <ThemedText type="smallBold">App ID</ThemedText>
+        <TextInput
+          autoCapitalize="none"
+          autoCorrect={false}
+          onChangeText={setAppId}
+          placeholder="Enter app id"
+          placeholderTextColor="#8A8F98"
+          style={styles.input}
+          value={appId}
+        />
+
+        <ThemedText type="smallBold">User ID</ThemedText>
+        <TextInput
+          autoCapitalize="none"
+          autoCorrect={false}
+          onChangeText={setUserId}
+          placeholder="Enter user id"
+          placeholderTextColor="#8A8F98"
+          style={styles.input}
+          value={userId}
+        />
+
+        <ThemedText type="small" themeColor="textSecondary">
+          Device API base URL: {getDeviceApiBaseUrl()}
+        </ThemedText>
       </View>
 
       <View style={styles.metaRow}>
@@ -186,6 +302,20 @@ export function PushTokenCard() {
         <ThemedText type="small">Token type</ThemedText>
         <ThemedText type="smallBold" style={styles.metaValue}>
           {tokenType}
+        </ThemedText>
+      </View>
+
+      <View style={styles.metaRow}>
+        <ThemedText type="small">Platform</ThemedText>
+        <ThemedText type="smallBold" style={styles.metaValue}>
+          {Platform.OS === 'android' || Platform.OS === 'ios' ? Platform.OS : 'unsupported'}
+        </ThemedText>
+      </View>
+
+      <View style={styles.metaRow}>
+        <ThemedText type="small">Device ID</ThemedText>
+        <ThemedText type="smallBold" style={styles.metaValue}>
+          {deviceId ?? 'Not created yet'}
         </ThemedText>
       </View>
 
@@ -202,6 +332,12 @@ export function PushTokenCard() {
         )}
       </View>
 
+      {deviceSyncStatus ? (
+        <ThemedView type="backgroundSelected" style={styles.messageBox}>
+          <ThemedText>{deviceSyncStatus}</ThemedText>
+        </ThemedView>
+      ) : null}
+
       {error ? (
         <ThemedView type="backgroundSelected" style={styles.messageBox}>
           <ThemedText>{error}</ThemedText>
@@ -211,6 +347,12 @@ export function PushTokenCard() {
       <ThemedView type="backgroundSelected" style={styles.messageBox}>
         <ThemedText type="small">
           Android FCM tokens are not available in Expo Go for SDK 57. Use `npx expo run:android` or a development build on Android.
+        </ThemedText>
+      </ThemedView>
+
+      <ThemedView type="backgroundSelected" style={styles.messageBox}>
+        <ThemedText type="small">
+          On Android emulators, `localhost` points to the emulator itself, so this uses `10.0.2.2:4000` for your local API.
         </ThemedText>
       </ThemedView>
     </ThemedView>
@@ -230,6 +372,16 @@ const styles = StyleSheet.create({
   },
   headerText: {
     gap: Spacing.one,
+  },
+  inputGroup: {
+    gap: Spacing.two,
+  },
+  input: {
+    borderRadius: Spacing.three,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.three,
+    backgroundColor: '#FFFFFF',
+    color: '#000000',
   },
   button: {
     alignSelf: 'flex-start',
