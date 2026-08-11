@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "709135015656",
+    "project_id": "bubbles-demo-app",
+    "storage_bucket": "bubbles-demo-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:709135015656:android:0529cfddce45d2f42c735d",
+        "android_client_info": {
+          "package_name": "com.fishonfire.bubbles_app_user"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDuUTMMquSdUtWX7DaOx2AAwV0aqLSgfEI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

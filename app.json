@@ -8,7 +8,8 @@
     "scheme": "bubblesappuser",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.fishonfire.bubbles_app_user"
     },
     "android": {
       "adaptiveIcon": {
@@ -18,7 +19,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.fishonfire.bubbles_app_user"
+      "package": "com.fishonfire.bubbles_app_user",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
