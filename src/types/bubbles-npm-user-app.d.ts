@@ -39,5 +39,11 @@ declare module 'bubbles-npm-user-app' {
       deviceParams: TBody,
       options?: UpdateDeviceOptions,
     ): Promise<TResponse>;
+
+    postDeliveryStatus<TResponse = unknown>(
+      id: string | number,
+      payload: { error?: string; status?: string },
+      options?: RequestOptions,
+    ): Promise<TResponse>;
   }
 }
