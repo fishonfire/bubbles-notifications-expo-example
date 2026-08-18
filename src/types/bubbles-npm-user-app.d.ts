@@ -46,4 +46,11 @@ declare module 'bubbles-npm-user-app' {
       options?: RequestOptions,
     ): Promise<TResponse>;
   }
+
+  export function getLocaleAndTimeZone(): {
+    locale: string;
+    timeZone: string;
+  };
+
+  export function getAppVersion(): string;
 }
