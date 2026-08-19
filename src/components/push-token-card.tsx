@@ -121,7 +121,7 @@ async function syncDeviceWithApi({
 
   const payload = {
     app_id: appId,
-    app_version: "appVersion",
+    app_version: 'appVersion',
     user_id: userId,
     aliasing,
     locale,
@@ -210,6 +210,8 @@ export function PushTokenCard() {
         throw new Error('Enter a user id first.');
       }
 
+      const resolvedDeviceId = deviceId?.trim() ? deviceId.trim() : null;
+
       const result = await getDevicePushTokenAsync();
       setDevicePushToken(result.token);
       setTokenType(result.tokenType);
@@ -223,10 +225,10 @@ export function PushTokenCard() {
         platform: result.platform,
         pushToken: result.token,
         notificationsEnabled: result.notificationsEnabled,
-        deviceId,
+        deviceId: resolvedDeviceId,
       });
 
-      setDeviceId(syncResult.deviceId);
+      setDeviceId(syncResult.deviceId ?? resolvedDeviceId);
       setDeviceSyncStatus(
         syncResult.action === 'created'
           ? syncResult.deviceId
@@ -301,6 +303,17 @@ export function PushTokenCard() {
           placeholderTextColor="#8A8F98"
           style={styles.input}
           value={aliasingInput}
+        />
+
+        <ThemedText type="smallBold">Device ID</ThemedText>
+        <TextInput
+          autoCapitalize="none"
+          autoCorrect={false}
+          onChangeText={setDeviceId}
+          placeholder="Existing device id for updates"
+          placeholderTextColor="#8A8F98"
+          style={styles.input}
+          value={deviceId ?? ''}
         />
 
         <ThemedText type="small" themeColor="textSecondary">

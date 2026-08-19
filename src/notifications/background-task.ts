@@ -46,6 +46,17 @@ if (!TaskManager.isTaskDefined(BACKGROUND_NOTIFICATION_TASK)) {
       const notificationData = data.data;
       const deliveryId = getStringValue(notificationData.delivery_id);
 
+      const currentSettings = await Notifications.getPermissionsAsync();
+      if (!currentSettings.granted) {
+        if (deliveryId) {
+          await postDeliveryStatus(deliveryId, {
+            status: 'notifications disabled',
+          });
+        }
+
+        return;
+      }
+
       if (deliveryId) {
         await postDeliveryStatus(deliveryId, {
           status: 'notification received',
