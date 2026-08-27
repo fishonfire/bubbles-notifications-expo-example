@@ -96,7 +96,6 @@ function describePermission(settings: Notifications.NotificationPermissionsStatu
 }
 
 async function syncDeviceWithApi({
-  authToken,
   appId,
   userId,
   aliasing,
@@ -105,7 +104,6 @@ async function syncDeviceWithApi({
   notificationsEnabled,
   deviceId,
 }: {
-  authToken: string;
   appId: string;
   userId: string;
   aliasing: string[];
@@ -116,7 +114,6 @@ async function syncDeviceWithApi({
 }) {
   const client = new DeviceClient({
     baseUrl: getDeviceApiBaseUrl(),
-    token: authToken,
   });
 
   const payload = {
@@ -180,7 +177,6 @@ async function getDevicePushTokenAsync() {
 }
 
 export function PushTokenCard() {
-  const [authToken, setAuthToken] = useState('');
   const [appId, setAppId] = useState('');
   const [userId, setUserId] = useState('');
   const [aliasingInput, setAliasingInput] = useState('');
@@ -198,10 +194,6 @@ export function PushTokenCard() {
     setDeviceSyncStatus(null);
 
     try {
-      if (!authToken.trim()) {
-        throw new Error('Enter a bearer auth token first.');
-      }
-
       if (!appId.trim()) {
         throw new Error('Enter an app id first.');
       }
@@ -218,7 +210,6 @@ export function PushTokenCard() {
       setPermissionStatus(result.permissionStatus);
 
       const syncResult = await syncDeviceWithApi({
-        authToken: authToken.trim(),
         appId: appId.trim(),
         userId: userId.trim(),
         aliasing: parseAliasingInput(aliasingInput),
@@ -261,17 +252,6 @@ export function PushTokenCard() {
       </View>
 
       <View style={styles.inputGroup}>
-        <ThemedText type="smallBold">Bearer auth token</ThemedText>
-        <TextInput
-          autoCapitalize="none"
-          autoCorrect={false}
-          onChangeText={setAuthToken}
-          placeholder="Paste auth token here"
-          placeholderTextColor="#8A8F98"
-          style={styles.input}
-          value={authToken}
-        />
-
         <ThemedText type="smallBold">App ID</ThemedText>
         <TextInput
           autoCapitalize="none"
