@@ -2,8 +2,10 @@ import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import { Platform } from 'react-native';
 import { DeviceClient } from 'bubbles-npm-user-app';
+import { File, Paths } from 'expo-file-system';
 
 const BACKGROUND_NOTIFICATION_TASK = 'BACKGROUND-NOTIFICATION-TASK';
+const DEVICE_ID_FILE_NAME = 'device-id.txt';
 
 function getStringValue(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
@@ -17,15 +19,30 @@ function getDeviceApiBaseUrl() {
   return 'http://localhost:4000';
 }
 
+function getDeviceIdFile() {
+  return new File(Paths.document, DEVICE_ID_FILE_NAME);
+}
+
+function readStoredDeviceId() {
+  const deviceIdFile = getDeviceIdFile();
+  if (!deviceIdFile.exists) {
+    return null;
+  }
+
+  const storedDeviceId = deviceIdFile.textSync().trim();
+  return storedDeviceId.length > 0 ? storedDeviceId : null;
+}
+
 async function postDeliveryStatus(
-  deliveryId: string,
+  deviceId: string,
+  notificationId: string,
   payload: { error?: string; status?: string },
 ) {
   const client = new DeviceClient({
-    baseUrl: getDeviceApiBaseUrl()
+    baseUrl: getDeviceApiBaseUrl(),
   });
 
-  await client.postDeliveryStatus(deliveryId, payload);
+  await client.postDeliveryStatus(deviceId, notificationId, payload);
 }
 
 if (!TaskManager.isTaskDefined(BACKGROUND_NOTIFICATION_TASK)) {
@@ -43,13 +60,16 @@ if (!TaskManager.isTaskDefined(BACKGROUND_NOTIFICATION_TASK)) {
         return Notifications.BackgroundNotificationTaskResult.NoData;
       }
 
-      const notificationData = data.data;
-      const deliveryId = getStringValue(notificationData.delivery_id);
+      const notificationData = data.data as Record<string, unknown>;
+      const deviceId = readStoredDeviceId();
+      const notificationId =
+        getStringValue(notificationData.notification_id) ??
+        getStringValue(notificationData.id);
 
       const currentSettings = await Notifications.getPermissionsAsync();
       if (!currentSettings.granted) {
-        if (deliveryId) {
-          await postDeliveryStatus(deliveryId, {
+        if (deviceId && notificationId) {
+          await postDeliveryStatus(deviceId, notificationId, {
             status: 'notifications disabled',
           });
         }
@@ -57,8 +77,8 @@ if (!TaskManager.isTaskDefined(BACKGROUND_NOTIFICATION_TASK)) {
         return;
       }
 
-      if (deliveryId) {
-        await postDeliveryStatus(deliveryId, {
+      if (deviceId && notificationId) {
+        await postDeliveryStatus(deviceId, notificationId, {
           status: 'notification received',
         });
       }
@@ -76,14 +96,14 @@ if (!TaskManager.isTaskDefined(BACKGROUND_NOTIFICATION_TASK)) {
           trigger: null,
         });
 
-        if (deliveryId) {
-          await postDeliveryStatus(deliveryId, {
+        if (deviceId && notificationId) {
+          await postDeliveryStatus(deviceId, notificationId, {
             status: 'notification shown',
           });
         }
       } catch (scheduleError) {
-        if (deliveryId) {
-          await postDeliveryStatus(deliveryId, {
+        if (deviceId && notificationId) {
+          await postDeliveryStatus(deviceId, notificationId, {
             error:
               scheduleError instanceof Error
                 ? `Failed to show notification: ${scheduleError.message}`

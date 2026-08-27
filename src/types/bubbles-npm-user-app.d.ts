@@ -41,7 +41,8 @@ declare module 'bubbles-npm-user-app' {
     ): Promise<TResponse>;
 
     postDeliveryStatus<TResponse = unknown>(
-      id: string | number,
+      deviceId: string,
+      notificationId: string,
       payload: { error?: string; status?: string },
       options?: RequestOptions,
     ): Promise<TResponse>;
