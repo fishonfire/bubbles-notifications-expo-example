@@ -25,7 +25,7 @@ export interface GetDeviceTokenOptions {
 export interface DeviceTokenResult {
   platform: SupportedPlatform;
   tokenType: NativeTokenType;
-  token: string;
+  token: string | null;
 }
 
 function parseAliasingInput(value: string): string[] {
@@ -43,6 +43,10 @@ function getCurrentPlatform(): SupportedPlatform {
   throw new Error(
     `Unsupported platform: ${Platform.OS}. This package only supports iOS and Android.`,
   );
+}
+
+function getDefaultTokenType(platform: SupportedPlatform): NativeTokenType {
+  return platform === 'android' ? 'fcm' : 'apns';
 }
 
 function getDeviceApiBaseUrl() {
@@ -76,48 +80,24 @@ function storeDeviceId(deviceId: string) {
   deviceIdFile.write(deviceId);
 }
 
-async function ensureNotificationPermissions(options?: GetDeviceTokenOptions): Promise<void> {
-  if (options?.requestPermissions === false) {
-    return;
-  }
-
-  const existingPermissions = await Notifications.getPermissionsAsync();
-
-  if (existingPermissions.granted) {
-    return;
-  }
-
-  const requestedPermissions = await Notifications.requestPermissionsAsync(
-    options?.permissionRequestOptions,
-  );
-
-  if (!requestedPermissions.granted) {
-    throw new Error('Push notification permission was not granted.');
-  }
-}
-
-export async function getDeviceToken(
-  options?: GetDeviceTokenOptions,
-): Promise<DeviceTokenResult> {
-  const platform = getCurrentPlatform();
-
-  await ensureNotificationPermissions(options);
-
-  const nativeToken = await Notifications.getDevicePushTokenAsync();
-
-  return {
-    platform,
-    tokenType: platform === 'android' ? 'fcm' : 'apns',
-    token: nativeToken.data,
-  };
-}
-
 function describePermission(settings: Notifications.NotificationPermissionsStatus) {
   if (Platform.OS === 'ios' && settings.ios?.status != null) {
     return Notifications.IosAuthorizationStatus[settings.ios.status].toLowerCase();
   }
 
   return settings.status;
+}
+
+async function getNotificationPermissions(
+  options?: GetDeviceTokenOptions,
+): Promise<Notifications.NotificationPermissionsStatus> {
+  const existingPermissions = await Notifications.getPermissionsAsync();
+
+  if (existingPermissions.granted || options?.requestPermissions === false) {
+    return existingPermissions;
+  }
+
+  return Notifications.requestPermissionsAsync(options?.permissionRequestOptions);
 }
 
 async function syncDeviceWithApi({
@@ -133,7 +113,7 @@ async function syncDeviceWithApi({
   userId: string;
   aliasing: string[];
   platform: SupportedPlatform;
-  pushToken: string;
+  pushToken: string | null;
   notificationsEnabled: boolean;
   deviceId: string | null;
 }) {
@@ -167,7 +147,7 @@ async function syncDeviceWithApi({
   return { action: 'created' as const, deviceId: createdDeviceId };
 }
 
-async function getDevicePushTokenAsync() {
+async function getDeviceRegistrationStateAsync() {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(DEFAULT_ANDROID_CHANNEL_ID, {
       name: 'Default',
@@ -179,7 +159,9 @@ async function getDevicePushTokenAsync() {
     throw new Error('Push tokens are only available on native iOS and Android apps.');
   }
 
-  const tokenResult = await getDeviceToken({
+  const platform = getCurrentPlatform();
+  const tokenType = getDefaultTokenType(platform);
+  const permissions = await getNotificationPermissions({
     requestPermissions: true,
     permissionRequestOptions: {
       ios: {
@@ -190,25 +172,38 @@ async function getDevicePushTokenAsync() {
     },
   });
 
-  const currentSettings = await Notifications.getPermissionsAsync();
+  if (!permissions.granted) {
+    return {
+      token: null,
+      permissionStatus: describePermission(permissions),
+      tokenType,
+      platform,
+      notificationsEnabled: false,
+    };
+  }
+
+  const nativeToken = await Notifications.getDevicePushTokenAsync();
 
   return {
-    token: tokenResult.token,
-    permissionStatus: describePermission(currentSettings),
-    tokenType: tokenResult.tokenType,
-    platform: tokenResult.platform,
-    notificationsEnabled: currentSettings.granted,
+    token: nativeToken.data,
+    permissionStatus: describePermission(permissions),
+    tokenType,
+    platform,
+    notificationsEnabled: true,
   };
 }
 
 export function PushTokenCard() {
+  const initialPlatform = Platform.OS === 'android' || Platform.OS === 'ios' ? Platform.OS : null;
   const [appId, setAppId] = useState('');
   const [userId, setUserId] = useState('');
   const [aliasingInput, setAliasingInput] = useState('');
   const [devicePushToken, setDevicePushToken] = useState<string | null>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [deviceSyncStatus, setDeviceSyncStatus] = useState<string | null>(null);
-  const [tokenType, setTokenType] = useState<string>('android');
+  const [tokenType, setTokenType] = useState<string>(
+    initialPlatform ? getDefaultTokenType(initialPlatform) : 'unknown',
+  );
   const [permissionStatus, setPermissionStatus] = useState<string>('unknown');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -241,7 +236,7 @@ export function PushTokenCard() {
     };
   }, []);
 
-  const handleGetToken = async () => {
+  const handleRegisterDevice = async () => {
     setIsLoading(true);
     setError(null);
     setDeviceSyncStatus(null);
@@ -257,7 +252,7 @@ export function PushTokenCard() {
 
       const storedDeviceId = readStoredDeviceId();
 
-      const result = await getDevicePushTokenAsync();
+      const result = await getDeviceRegistrationStateAsync();
       setDevicePushToken(result.token);
       setTokenType(result.tokenType);
       setPermissionStatus(result.permissionStatus);
@@ -286,7 +281,7 @@ export function PushTokenCard() {
           : 'Device updated',
       );
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Failed to get the device push token.');
+      setError(caughtError instanceof Error ? caughtError.message : 'Failed to register the device.');
     } finally {
       setIsLoading(false);
     }
@@ -298,7 +293,7 @@ export function PushTokenCard() {
         <View style={styles.headerText}>
           <ThemedText type="subtitle">Device push token</ThemedText>
           <ThemedText themeColor="textSecondary">
-            Request notification permission, fetch the native push token, and create or update the device in your API.
+            Request notification permission, fetch the native push token when available, and create or update the device in your API.
           </ThemedText>
           <View style={styles.metaRow}>
             <ThemedText type="small">Device ID</ThemedText>
@@ -308,9 +303,9 @@ export function PushTokenCard() {
           </View>
         </View>
 
-        <Pressable onPress={handleGetToken} style={({ pressed }) => [pressed && styles.pressed]}>
+        <Pressable onPress={handleRegisterDevice} style={({ pressed }) => [pressed && styles.pressed]}>
           <ThemedView type="backgroundSelected" style={styles.button}>
-            <ThemedText type="smallBold">{isLoading ? 'Loading…' : 'Get token'}</ThemedText>
+            <ThemedText type="smallBold">{isLoading ? 'Loading…' : 'Register/update device'}</ThemedText>
           </ThemedView>
         </Pressable>
       </View>
@@ -381,7 +376,7 @@ export function PushTokenCard() {
           </ThemedText>
         ) : (
           <ThemedText themeColor="textSecondary">
-            Tap {Platform.OS === 'web' ? 'Get token on a native build' : 'Get token'} to request permission and load the token.
+            Tap {Platform.OS === 'web' ? 'Register/update device on a native build' : 'Register/update device'} to register this device. If notifications are denied, the device is still saved without a push token.
           </ThemedText>
         )}
       </View>
