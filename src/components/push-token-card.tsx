@@ -1,6 +1,7 @@
 import { DeviceClient, getLocaleAndTimeZone } from 'bubbles-npm-user-app';
+import { File, Paths } from 'expo-file-system';
 import * as Notifications from 'expo-notifications';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -8,6 +9,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 
 const DEFAULT_ANDROID_CHANNEL_ID = 'default';
+const DEVICE_ID_FILE_NAME = 'device-id.txt';
 
 const { locale, timeZone } = getLocaleAndTimeZone();
 // const appVersion = getAppVersion();
@@ -49,6 +51,29 @@ function getDeviceApiBaseUrl() {
   }
 
   return 'http://localhost:4000';
+}
+
+function getDeviceIdFile() {
+  return new File(Paths.document, DEVICE_ID_FILE_NAME);
+}
+
+function readStoredDeviceId() {
+  const deviceIdFile = getDeviceIdFile();
+  if (!deviceIdFile.exists) {
+    return null;
+  }
+
+  const storedDeviceId = deviceIdFile.textSync().trim();
+  return storedDeviceId.length > 0 ? storedDeviceId : null;
+}
+
+function storeDeviceId(deviceId: string) {
+  const deviceIdFile = getDeviceIdFile();
+  if (!deviceIdFile.exists) {
+    deviceIdFile.create({ intermediates: true });
+  }
+
+  deviceIdFile.write(deviceId);
 }
 
 async function ensureNotificationPermissions(options?: GetDeviceTokenOptions): Promise<void> {
@@ -188,6 +213,34 @@ export function PushTokenCard() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    void Promise.resolve(readStoredDeviceId())
+      .then((storedDeviceId) => {
+        if (!isMounted || !storedDeviceId) {
+          return;
+        }
+
+        setDeviceId(storedDeviceId);
+      })
+      .catch((storageError) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setError(
+          storageError instanceof Error
+            ? storageError.message
+            : 'Failed to load the stored device id.',
+        );
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const handleGetToken = async () => {
     setIsLoading(true);
     setError(null);
@@ -202,7 +255,7 @@ export function PushTokenCard() {
         throw new Error('Enter a user id first.');
       }
 
-      const resolvedDeviceId = deviceId?.trim() ? deviceId.trim() : null;
+      const storedDeviceId = readStoredDeviceId();
 
       const result = await getDevicePushTokenAsync();
       setDevicePushToken(result.token);
@@ -216,10 +269,15 @@ export function PushTokenCard() {
         platform: result.platform,
         pushToken: result.token,
         notificationsEnabled: result.notificationsEnabled,
-        deviceId: resolvedDeviceId,
+        deviceId: storedDeviceId,
       });
 
-      setDeviceId(syncResult.deviceId ?? resolvedDeviceId);
+      const nextDeviceId = syncResult.deviceId ?? storedDeviceId;
+      if (nextDeviceId) {
+        storeDeviceId(nextDeviceId);
+      }
+
+      setDeviceId(nextDeviceId);
       setDeviceSyncStatus(
         syncResult.action === 'created'
           ? syncResult.deviceId
@@ -242,6 +300,12 @@ export function PushTokenCard() {
           <ThemedText themeColor="textSecondary">
             Request notification permission, fetch the native push token, and create or update the device in your API.
           </ThemedText>
+          <View style={styles.metaRow}>
+            <ThemedText type="small">Device ID</ThemedText>
+            <ThemedText type="smallBold" style={styles.metaValue}>
+              {deviceId ?? 'Not created yet'}
+            </ThemedText>
+          </View>
         </View>
 
         <Pressable onPress={handleGetToken} style={({ pressed }) => [pressed && styles.pressed]}>
@@ -285,17 +349,6 @@ export function PushTokenCard() {
           value={aliasingInput}
         />
 
-        <ThemedText type="smallBold">Device ID</ThemedText>
-        <TextInput
-          autoCapitalize="none"
-          autoCorrect={false}
-          onChangeText={setDeviceId}
-          placeholder="Existing device id for updates"
-          placeholderTextColor="#8A8F98"
-          style={styles.input}
-          value={deviceId ?? ''}
-        />
-
         <ThemedText type="small" themeColor="textSecondary">
           Device API base URL: {getDeviceApiBaseUrl()}
         </ThemedText>
@@ -317,13 +370,6 @@ export function PushTokenCard() {
         <ThemedText type="small">Platform</ThemedText>
         <ThemedText type="smallBold" style={styles.metaValue}>
           {Platform.OS === 'android' || Platform.OS === 'ios' ? Platform.OS : 'unsupported'}
-        </ThemedText>
-      </View>
-
-      <View style={styles.metaRow}>
-        <ThemedText type="small">Device ID</ThemedText>
-        <ThemedText type="smallBold" style={styles.metaValue}>
-          {deviceId ?? 'Not created yet'}
         </ThemedText>
       </View>
 
