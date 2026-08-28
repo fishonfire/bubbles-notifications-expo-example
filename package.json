@@ -4,6 +4,8 @@
   "version": "1.0.0",
   "dependencies": {
     "@expo/ui": "~57.0.9",
+    "@react-native-firebase/app": "^26.3.2",
+    "@react-native-firebase/installations": "^26.3.2",
     "bubbles-npm-get-device-token": "file:../bubbles_npm_get_device_token",
     "bubbles-npm-user-app": "file:../bubbles_npm_user_app",
     "expo": "~57.0.11",

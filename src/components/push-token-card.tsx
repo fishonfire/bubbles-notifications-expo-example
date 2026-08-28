@@ -3,6 +3,7 @@ import { File, Paths } from 'expo-file-system';
 import * as Notifications from 'expo-notifications';
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { getInstallations, getId } from '@react-native-firebase/installations';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -26,6 +27,7 @@ export interface DeviceTokenResult {
   platform: SupportedPlatform;
   tokenType: NativeTokenType;
   token: string | null;
+  fid: string | null;
 }
 
 function parseAliasingInput(value: string): string[] {
@@ -106,6 +108,7 @@ async function syncDeviceWithApi({
   aliasing,
   platform,
   pushToken,
+  fid,
   notificationsEnabled,
   deviceId,
 }: {
@@ -114,6 +117,7 @@ async function syncDeviceWithApi({
   aliasing: string[];
   platform: SupportedPlatform;
   pushToken: string | null;
+  fid: string | null;
   notificationsEnabled: boolean;
   deviceId: string | null;
 }) {
@@ -129,6 +133,7 @@ async function syncDeviceWithApi({
     locale,
     platform,
     push_token: pushToken,
+    fid: fid,
     notifications_enabled: notificationsEnabled,
     timezone: timeZone,
   };
@@ -175,6 +180,7 @@ async function getDeviceRegistrationStateAsync() {
   if (!permissions.granted) {
     return {
       token: null,
+      fid: null,
       permissionStatus: describePermission(permissions),
       tokenType,
       platform,
@@ -183,9 +189,11 @@ async function getDeviceRegistrationStateAsync() {
   }
 
   const nativeToken = await Notifications.getDevicePushTokenAsync();
+  const firebaseInstallationId = await getId(getInstallations());
 
   return {
     token: nativeToken.data,
+    fid: firebaseInstallationId,
     permissionStatus: describePermission(permissions),
     tokenType,
     platform,
@@ -263,6 +271,7 @@ export function PushTokenCard() {
         aliasing: parseAliasingInput(aliasingInput),
         platform: result.platform,
         pushToken: result.token,
+        fid: result.fid,
         notificationsEnabled: result.notificationsEnabled,
         deviceId: storedDeviceId,
       });
