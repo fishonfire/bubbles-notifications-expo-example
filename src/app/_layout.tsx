@@ -6,6 +6,11 @@ import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import AppTabs from '@/components/app-tabs';
+import {
+  getStringValue,
+  postDeliveryStatus,
+  readStoredDeviceId,
+} from '@/notifications/helper';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -27,15 +32,30 @@ function useNotificationObserver() {
       }
     }
 
+    function handleNotificationTap(notification: Notifications.Notification) {
+      const deviceId = readStoredDeviceId();
+      const notificationId = getStringValue(notification.request.content.data?.notification_id);
+
+      if (deviceId && notificationId) {
+        void postDeliveryStatus(deviceId, notificationId, {
+          status: 'notification clicked',
+        });
+      }
+
+      redirect(notification);
+    }
+
     // Handle the notification tap that may have opened the app.
     const response = Notifications.getLastNotificationResponse();
     if (response?.notification) {
-      redirect(response.notification);
+      console.log('really new opeening');
+      handleNotificationTap(response.notification);
     }
 
     // Handle notification taps that happen while the app is already running.
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      redirect(response.notification);
+      console.log('Was still running');
+      handleNotificationTap(response.notification);
     });
 
     return () => {

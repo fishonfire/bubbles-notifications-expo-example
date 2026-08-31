@@ -1,49 +1,12 @@
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
-import { Platform } from 'react-native';
-import { DeviceClient } from 'bubbles-npm-user-app';
-import { File, Paths } from 'expo-file-system';
+import {
+  getStringValue,
+  postDeliveryStatus,
+  readStoredDeviceId,
+} from '@/notifications/helper';
 
 const BACKGROUND_NOTIFICATION_TASK = 'BACKGROUND-NOTIFICATION-TASK';
-const DEVICE_ID_FILE_NAME = 'device-id.txt';
-
-function getStringValue(value: unknown): string | null {
-  return typeof value === 'string' && value.trim().length > 0 ? value : null;
-}
-
-function getDeviceApiBaseUrl() {
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:4000';
-  }
-
-  return 'http://localhost:4000';
-}
-
-function getDeviceIdFile() {
-  return new File(Paths.document, DEVICE_ID_FILE_NAME);
-}
-
-function readStoredDeviceId() {
-  const deviceIdFile = getDeviceIdFile();
-  if (!deviceIdFile.exists) {
-    return null;
-  }
-
-  const storedDeviceId = deviceIdFile.textSync().trim();
-  return storedDeviceId.length > 0 ? storedDeviceId : null;
-}
-
-async function postDeliveryStatus(
-  deviceId: string,
-  notificationId: string,
-  payload: { error?: string; status?: string },
-) {
-  const client = new DeviceClient({
-    baseUrl: getDeviceApiBaseUrl(),
-  });
-
-  await client.postDeliveryStatus(deviceId, notificationId, payload);
-}
 
 if (!TaskManager.isTaskDefined(BACKGROUND_NOTIFICATION_TASK)) {
   TaskManager.defineTask<Notifications.NotificationTaskPayload>(
