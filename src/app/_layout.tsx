@@ -48,13 +48,11 @@ function useNotificationObserver() {
     // Handle the notification tap that may have opened the app.
     const response = Notifications.getLastNotificationResponse();
     if (response?.notification) {
-      console.log('really new opeening');
       handleNotificationTap(response.notification);
     }
 
     // Handle notification taps that happen while the app is already running.
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      console.log('Was still running');
       handleNotificationTap(response.notification);
     });
 
