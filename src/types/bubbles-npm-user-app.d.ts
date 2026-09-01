@@ -1,4 +1,4 @@
-declare module 'bubbles-npm-user-app' {
+declare module '@fishonfire/bubbles-js' {
   export interface RequestOptions {
     token?: string | (() => string | Promise<string>) | null;
     headers?: Record<string, string>;

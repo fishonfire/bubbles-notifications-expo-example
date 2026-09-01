@@ -1,4 +1,4 @@
-import { DeviceClient, getLocaleAndTimeZone } from 'bubbles-npm-user-app';
+import { DeviceClient, getLocaleAndTimeZone } from '@fishonfire/bubbles-js';
 import { File, Paths } from 'expo-file-system';
 import * as Notifications from 'expo-notifications';
 import { useEffect, useState } from 'react';

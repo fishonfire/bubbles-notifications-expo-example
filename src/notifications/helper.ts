@@ -1,5 +1,5 @@
 import { File, Paths } from 'expo-file-system';
-import { DeviceClient } from 'bubbles-npm-user-app';
+import { DeviceClient } from '@fishonfire/bubbles-js';
 import { Platform } from 'react-native';
 
 const DEVICE_ID_FILE_NAME = 'device-id.txt';
