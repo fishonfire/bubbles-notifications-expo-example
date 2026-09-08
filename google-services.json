@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:709135015656:android:70910ff01a2957e52c735d",
+        "android_client_info": {
+          "package_name": "com.fishonfire.bubbles"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDuUTMMquSdUtWX7DaOx2AAwV0aqLSgfEI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:709135015656:android:0529cfddce45d2f42c735d",
         "android_client_info": {
           "package_name": "com.fishonfire.bubbles_app_user"

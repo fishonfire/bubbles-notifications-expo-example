@@ -9,7 +9,16 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.fishonfire.bubbles_app_user"
+      "bundleIdentifier": "com.fishonfire.bubbles",
+      "entitlements": {
+        "aps-environment": "production"
+      },
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
+      },
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,22 +28,20 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.fishonfire.bubbles_app_user",
+      "package": "com.fishonfire.bubbles",
       "googleServicesFile": "./google-services.json"
     },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
-    },
     "plugins": [
-      "expo-router",
       [
-        "expo-notifications",
+        "expo-build-properties",
         {
-          "defaultChannel": "default",
-          "enableBackgroundRemoteNotifications": true
+          "ios": {
+            "useFrameworks": "static"
+          }
         }
       ],
+      "expo-router",
+      "@react-native-firebase/messaging",
       [
         "expo-splash-screen",
         {
@@ -43,7 +50,16 @@
           "imageWidth": 76
         }
       ],
-      "@react-native-firebase/app"
+      "@react-native-firebase/app",
+      [
+        "@fishonfire/bubbles-expo",
+        {
+          "defaultChannelId": "default",
+          "defaultChannelName": "Default",
+          "androidChannelImportance": "max",
+          "enableBackgroundRemoteNotifications": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

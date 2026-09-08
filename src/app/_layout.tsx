@@ -1,75 +1,24 @@
-import { DarkTheme, DefaultTheme, Href, ThemeProvider, router } from 'expo-router';
-import * as Notifications from 'expo-notifications';
-import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import type { BubblesNotificationResponseEvent } from '@fishonfire/bubbles-expo';
+import { DarkTheme, DefaultTheme, Href, Stack, ThemeProvider, router } from 'expo-router';
 import { useColorScheme } from 'react-native';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
-import {
-  getStringValue,
-  postDeliveryStatus,
-  readStoredDeviceId,
-} from '@/notifications/helper';
+import { DemoNotificationsProvider } from '@/notifications/demo-provider';
 
-SplashScreen.preventAutoHideAsync();
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
-});
-
-function useNotificationObserver() {
-  useEffect(() => {
-    function redirect(notification: Notifications.Notification) {
-      const url = notification.request.content.data?.url;
-      if (typeof url === 'string') {
-        router.push(url as Href);
-      }
-    }
-
-    function handleNotificationTap(notification: Notifications.Notification) {
-      const deviceId = readStoredDeviceId();
-      const notificationId = getStringValue(notification.request.content.data?.notification_id);
-
-      if (deviceId && notificationId) {
-        void postDeliveryStatus(deviceId, notificationId, {
-          status: 'notification clicked',
-        });
-      }
-
-      redirect(notification);
-    }
-
-    // Handle the notification tap that may have opened the app.
-    const response = Notifications.getLastNotificationResponse();
-    if (response?.notification) {
-      handleNotificationTap(response.notification);
-    }
-
-    // Handle notification taps that happen while the app is already running.
-    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      handleNotificationTap(response.notification);
-    });
-
-    return () => {
-      subscription.remove();
-    };
-  }, []);
+function handleNotificationResponse(event: BubblesNotificationResponseEvent) {
+  if (event.url) {
+    router.push(event.url as Href);
+  }
 }
 
-export default function TabLayout() {
+export default function RootLayout() {
   const colorScheme = useColorScheme();
-  useNotificationObserver();
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <DemoNotificationsProvider
+      onNotificationResponse={handleNotificationResponse}>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <Stack screenOptions={{ headerShown: false }} />
+      </ThemeProvider>
+    </DemoNotificationsProvider>
   );
 }

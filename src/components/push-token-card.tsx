@@ -1,298 +1,92 @@
-import { DeviceClient, getLocaleAndTimeZone } from '@fishonfire/bubbles-js';
-import { File, Paths } from 'expo-file-system';
-import * as Notifications from 'expo-notifications';
-import { useEffect, useState } from 'react';
+import { useBubblesNotifications } from '@fishonfire/bubbles-expo';
+import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { getInstallations, getId } from '@react-native-firebase/installations';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
-
-const DEFAULT_ANDROID_CHANNEL_ID = 'default';
-const DEVICE_ID_FILE_NAME = 'device-id.txt';
-
-const { locale, timeZone } = getLocaleAndTimeZone();
-// const appVersion = getAppVersion();
-export type SupportedPlatform = 'android' | 'ios';
-export type NativeTokenType = 'fcm' | 'apns';
-export type PermissionRequestOptions = Parameters<typeof Notifications.requestPermissionsAsync>[0];
-
-export interface GetDeviceTokenOptions {
-  requestPermissions?: boolean;
-  permissionRequestOptions?: PermissionRequestOptions;
-}
-
-export interface DeviceTokenResult {
-  platform: SupportedPlatform;
-  tokenType: NativeTokenType;
-  token: string | null;
-  fid: string | null;
-}
-
-function parseAliasingInput(value: string): string[] {
-  return value
-    .split(',')
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
-}
-
-function getCurrentPlatform(): SupportedPlatform {
-  if (Platform.OS === 'android' || Platform.OS === 'ios') {
-    return Platform.OS;
-  }
-
-  throw new Error(
-    `Unsupported platform: ${Platform.OS}. This package only supports iOS and Android.`,
-  );
-}
-
-function getDefaultTokenType(platform: SupportedPlatform): NativeTokenType {
-  return platform === 'android' ? 'fcm' : 'apns';
-}
-
-function getDeviceApiBaseUrl() {
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:4000';
-  }
-
-  return 'http://localhost:4000';
-}
-
-function getDeviceIdFile() {
-  return new File(Paths.document, DEVICE_ID_FILE_NAME);
-}
-
-function readStoredDeviceId() {
-  const deviceIdFile = getDeviceIdFile();
-  if (!deviceIdFile.exists) {
-    return null;
-  }
-
-  const storedDeviceId = deviceIdFile.textSync().trim();
-  return storedDeviceId.length > 0 ? storedDeviceId : null;
-}
-
-function storeDeviceId(deviceId: string) {
-  const deviceIdFile = getDeviceIdFile();
-  if (!deviceIdFile.exists) {
-    deviceIdFile.create({ intermediates: true });
-  }
-
-  deviceIdFile.write(deviceId);
-}
-
-function describePermission(settings: Notifications.NotificationPermissionsStatus) {
-  if (Platform.OS === 'ios' && settings.ios?.status != null) {
-    return Notifications.IosAuthorizationStatus[settings.ios.status].toLowerCase();
-  }
-
-  return settings.status;
-}
-
-async function getNotificationPermissions(
-  options?: GetDeviceTokenOptions,
-): Promise<Notifications.NotificationPermissionsStatus> {
-  const existingPermissions = await Notifications.getPermissionsAsync();
-
-  if (existingPermissions.granted || options?.requestPermissions === false) {
-    return existingPermissions;
-  }
-
-  return Notifications.requestPermissionsAsync(options?.permissionRequestOptions);
-}
-
-async function syncDeviceWithApi({
-  appId,
-  userId,
-  aliasing,
-  platform,
-  pushToken,
-  fid,
-  notificationsEnabled,
-  deviceId,
-}: {
-  appId: string;
-  userId: string;
-  aliasing: string[];
-  platform: SupportedPlatform;
-  pushToken: string | null;
-  fid: string | null;
-  notificationsEnabled: boolean;
-  deviceId: string | null;
-}) {
-  const client = new DeviceClient({
-    baseUrl: getDeviceApiBaseUrl(),
-  });
-
-  const payload = {
-    app_id: appId,
-    app_version: 'appVersion',
-    user_id: userId,
-    aliasing,
-    locale,
-    platform,
-    push_token: pushToken,
-    fid: fid,
-    notifications_enabled: notificationsEnabled,
-    timezone: timeZone,
-  };
-
-  if (deviceId) {
-    await client.updateDevice(deviceId, payload);
-    return { action: 'updated' as const, deviceId };
-  }
-
-  const createdDevice = await client.createDevice<Record<string, unknown>>(payload);
-  const createdDeviceId =
-    typeof createdDevice?.id === 'string' || typeof createdDevice?.id === 'number'
-      ? String(createdDevice.id)
-      : null;
-
-  return { action: 'created' as const, deviceId: createdDeviceId };
-}
-
-async function getDeviceRegistrationStateAsync() {
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync(DEFAULT_ANDROID_CHANNEL_ID, {
-      name: 'Default',
-      importance: Notifications.AndroidImportance.MAX,
-    });
-  }
-
-  if (Platform.OS === 'web') {
-    throw new Error('Push tokens are only available on native iOS and Android apps.');
-  }
-
-  const platform = getCurrentPlatform();
-  const tokenType = getDefaultTokenType(platform);
-  const permissions = await getNotificationPermissions({
-    requestPermissions: true,
-    permissionRequestOptions: {
-      ios: {
-        allowAlert: true,
-        allowBadge: true,
-        allowSound: true,
-      },
-    },
-  });
-
-  if (!permissions.granted) {
-    return {
-      token: null,
-      fid: null,
-      permissionStatus: describePermission(permissions),
-      tokenType,
-      platform,
-      notificationsEnabled: false,
-    };
-  }
-
-  const nativeToken = await Notifications.getDevicePushTokenAsync();
-  const firebaseInstallationId = await getId(getInstallations());
-
-  return {
-    token: nativeToken.data,
-    fid: firebaseInstallationId,
-    permissionStatus: describePermission(permissions),
-    tokenType,
-    platform,
-    notificationsEnabled: true,
-  };
-}
+import { useDemoNotificationsConfig } from '@/notifications/demo-provider';
 
 export function PushTokenCard() {
-  const initialPlatform = Platform.OS === 'android' || Platform.OS === 'ios' ? Platform.OS : null;
-  const [appId, setAppId] = useState('');
-  const [userId, setUserId] = useState('');
-  const [aliasingInput, setAliasingInput] = useState('');
-  const [devicePushToken, setDevicePushToken] = useState<string | null>(null);
-  const [deviceId, setDeviceId] = useState<string | null>(null);
+  const {
+    registerDevice,
+    deviceId,
+    pushToken,
+    tokenType,
+    permissionStatus,
+    isSyncing,
+    error,
+  } = useBubblesNotifications();
+  const {
+    appIdInput,
+    setAppIdInput,
+    appKeyInput,
+    setAppKeyInput,
+    userIdInput,
+    setUserIdInput,
+    aliasingInput,
+    setAliasingInput,
+    apiBaseUrl,
+  } = useDemoNotificationsConfig();
   const [deviceSyncStatus, setDeviceSyncStatus] = useState<string | null>(null);
-  const [tokenType, setTokenType] = useState<string>(
-    initialPlatform ? getDefaultTokenType(initialPlatform) : 'unknown',
-  );
-  const [permissionStatus, setPermissionStatus] = useState<string>('unknown');
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
+  const displayError = localError ?? error?.message ?? null;
 
-    void Promise.resolve(readStoredDeviceId())
-      .then((storedDeviceId) => {
-        if (!isMounted || !storedDeviceId) {
-          return;
-        }
+  function handleAppIdChange(value: string) {
+    setAppIdInput(value);
+    setDeviceSyncStatus(null);
+    setLocalError(null);
+  }
 
-        setDeviceId(storedDeviceId);
-      })
-      .catch((storageError) => {
-        if (!isMounted) {
-          return;
-        }
+  function handleAppKeyChange(value: string) {
+    setAppKeyInput(value);
+    setDeviceSyncStatus(null);
+    setLocalError(null);
+  }
 
-        setError(
-          storageError instanceof Error
-            ? storageError.message
-            : 'Failed to load the stored device id.',
-        );
-      });
+  function handleUserIdChange(value: string) {
+    setUserIdInput(value);
+    setDeviceSyncStatus(null);
+    setLocalError(null);
+  }
 
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  function handleAliasingChange(value: string) {
+    setAliasingInput(value);
+    setDeviceSyncStatus(null);
+    setLocalError(null);
+  }
 
   const handleRegisterDevice = async () => {
-    setIsLoading(true);
-    setError(null);
+    const trimmedAppId = appIdInput.trim();
+    const trimmedAppKey = appKeyInput.trim();
+    const trimmedUserId = userIdInput.trim();
+    const hadStoredDeviceId = deviceId !== null;
+
     setDeviceSyncStatus(null);
+    setLocalError(null);
 
     try {
-      if (!appId.trim()) {
+      if (!trimmedAppId) {
         throw new Error('Enter an app id first.');
       }
 
-      if (!userId.trim()) {
+      if (!trimmedAppKey) {
+        throw new Error('Enter an app key first.');
+      }
+
+      if (!trimmedUserId) {
         throw new Error('Enter a user id first.');
       }
 
-      const storedDeviceId = readStoredDeviceId();
-
-      const result = await getDeviceRegistrationStateAsync();
-      setDevicePushToken(result.token);
-      setTokenType(result.tokenType);
-      setPermissionStatus(result.permissionStatus);
-
-      const syncResult = await syncDeviceWithApi({
-        appId: appId.trim(),
-        userId: userId.trim(),
-        aliasing: parseAliasingInput(aliasingInput),
-        platform: result.platform,
-        pushToken: result.token,
-        fid: result.fid,
-        notificationsEnabled: result.notificationsEnabled,
-        deviceId: storedDeviceId,
-      });
-
-      const nextDeviceId = syncResult.deviceId ?? storedDeviceId;
-      if (nextDeviceId) {
-        storeDeviceId(nextDeviceId);
-      }
-
-      setDeviceId(nextDeviceId);
-      setDeviceSyncStatus(
-        syncResult.action === 'created'
-          ? syncResult.deviceId
-            ? 'Device created'
-            : 'Device created, but no device id was returned by the API.'
-          : 'Device updated',
-      );
+      await registerDevice();
+      setDeviceSyncStatus(hadStoredDeviceId ? 'Device updated' : 'Device synced');
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Failed to register the device.');
-    } finally {
-      setIsLoading(false);
+      setLocalError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Failed to register the device.',
+      );
     }
   };
 
@@ -300,9 +94,10 @@ export function PushTokenCard() {
     <ThemedView type="backgroundElement" style={styles.card}>
       <View style={styles.headerRow}>
         <View style={styles.headerText}>
-          <ThemedText type="subtitle">Device push token</ThemedText>
+          <ThemedText type="subtitle">Register a device</ThemedText>
           <ThemedText themeColor="textSecondary">
-            Request notification permission, fetch the native push token when available, and create or update the device in your API.
+            Request notification permission, fetch a push token, and sync the device record
+            through the Bubbles package.
           </ThemedText>
           <View style={styles.metaRow}>
             <ThemedText type="small">Device ID</ThemedText>
@@ -314,7 +109,9 @@ export function PushTokenCard() {
 
         <Pressable onPress={handleRegisterDevice} style={({ pressed }) => [pressed && styles.pressed]}>
           <ThemedView type="backgroundSelected" style={styles.button}>
-            <ThemedText type="smallBold">{isLoading ? 'Loading…' : 'Register/update device'}</ThemedText>
+            <ThemedText type="smallBold">
+              {isSyncing ? 'Loading…' : 'Register/update device'}
+            </ThemedText>
           </ThemedView>
         </Pressable>
       </View>
@@ -324,29 +121,40 @@ export function PushTokenCard() {
         <TextInput
           autoCapitalize="none"
           autoCorrect={false}
-          onChangeText={setAppId}
+          onChangeText={handleAppIdChange}
           placeholder="Enter app id"
           placeholderTextColor="#8A8F98"
           style={styles.input}
-          value={appId}
+          value={appIdInput}
+        />
+
+        <ThemedText type="smallBold">App Key</ThemedText>
+        <TextInput
+          autoCapitalize="none"
+          autoCorrect={false}
+          onChangeText={handleAppKeyChange}
+          placeholder="Enter app key"
+          placeholderTextColor="#8A8F98"
+          style={styles.input}
+          value={appKeyInput}
         />
 
         <ThemedText type="smallBold">User ID</ThemedText>
         <TextInput
           autoCapitalize="none"
           autoCorrect={false}
-          onChangeText={setUserId}
+          onChangeText={handleUserIdChange}
           placeholder="Enter user id"
           placeholderTextColor="#8A8F98"
           style={styles.input}
-          value={userId}
+          value={userIdInput}
         />
 
         <ThemedText type="smallBold">Aliasing</ThemedText>
         <TextInput
           autoCapitalize="none"
           autoCorrect={false}
-          onChangeText={setAliasingInput}
+          onChangeText={handleAliasingChange}
           placeholder="Enter comma-separated aliases"
           placeholderTextColor="#8A8F98"
           style={styles.input}
@@ -354,7 +162,7 @@ export function PushTokenCard() {
         />
 
         <ThemedText type="small" themeColor="textSecondary">
-          Device API base URL: {getDeviceApiBaseUrl()}
+          Device API base URL: {apiBaseUrl}
         </ThemedText>
       </View>
 
@@ -366,7 +174,7 @@ export function PushTokenCard() {
       <View style={styles.metaRow}>
         <ThemedText type="small">Token type</ThemedText>
         <ThemedText type="smallBold" style={styles.metaValue}>
-          {tokenType}
+          {tokenType ?? 'unknown'}
         </ThemedText>
       </View>
 
@@ -378,10 +186,10 @@ export function PushTokenCard() {
       </View>
 
       <View style={styles.tokenBlock}>
-        <ThemedText type="smallBold">Device push token</ThemedText>
-        {devicePushToken ? (
+        <ThemedText type="smallBold">Push token</ThemedText>
+        {pushToken ? (
           <ThemedText selectable type="code" style={styles.tokenText}>
-            {devicePushToken}
+            {pushToken}
           </ThemedText>
         ) : (
           <ThemedText themeColor="textSecondary">
@@ -396,9 +204,9 @@ export function PushTokenCard() {
         </ThemedView>
       ) : null}
 
-      {error ? (
+      {displayError ? (
         <ThemedView type="backgroundSelected" style={styles.messageBox}>
-          <ThemedText>{error}</ThemedText>
+          <ThemedText>{displayError}</ThemedText>
         </ThemedView>
       ) : null}
 
@@ -410,7 +218,8 @@ export function PushTokenCard() {
 
       <ThemedView type="backgroundSelected" style={styles.messageBox}>
         <ThemedText type="small">
-          On Android emulators, `localhost` points to the emulator itself, so this uses `10.0.2.2:4000` for your local API.
+          On Android emulators, localhost points to the emulator itself, so this uses 10.0.2.2:4000
+          for your local API.
         </ThemedText>
       </ThemedView>
     </ThemedView>
