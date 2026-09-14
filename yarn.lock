@@ -1453,17 +1453,19 @@
   resolved "https://registry.yarnpkg.com/@firebase/webchannel-wrapper/-/webchannel-wrapper-1.0.6.tgz#4be6a62b8c27a6bad8cc8da41f9a12de901e965d"
   integrity sha512-Vr/Mqu79dMwGRAyGbJ4uN4+BtXB3/mRTdzetD1daWNeG8QaWuzhhbG77GltO5c0yYmYls8i250iX73624GJd7Q==
 
-"@fishonfire/bubbles-expo@file:../bubbles-notifications-expo":
+"@fishonfire/bubbles-expo@0.1.0":
   version "0.1.0"
+  resolved "https://registry.yarnpkg.com/@fishonfire/bubbles-expo/-/bubbles-expo-0.1.0.tgz#1cc63681aeebf5d70e7722d3c12738fa49d6a631"
+  integrity sha512-RosrQJPVHDsrHVNo2N7/vyeD/+FhjVvvTA23WRNVhJsuf4t7J8IF/yr50BdYTYKMWnxhwxajCuVsMksZwzbDRw==
   dependencies:
-    "@fishonfire/bubbles-js" "file:../../Library/Caches/Yarn/v6/npm-@fishonfire-bubbles-expo-0.1.0-fe70e5c6-79a4-406a-b830-c4dd86a84aaf-1788873257869/node_modules/@fishonfire/bubbles-notifications-js"
-    expo-application "~57.0.2"
+    "@fishonfire/bubbles-js" "0.1.0"
     expo-constants "~57.0.16"
-    expo-device "~57.0.1"
     expo-file-system "~57.0.6"
 
-"@fishonfire/bubbles-js@file:../bubbles-notifications-js":
+"@fishonfire/bubbles-js@0.1.0":
   version "0.1.0"
+  resolved "https://registry.yarnpkg.com/@fishonfire/bubbles-js/-/bubbles-js-0.1.0.tgz#37f10fa0c29f14c59c785976185c4384c6d59c97"
+  integrity sha512-y504ZE9o4NP1aV29nUSOtR/g+xwhn7vpnvlUjrv7Aw8Q/5vtHBvvbA3Xy7RXclqvDMOfP0TIiI29ueOjtLk07w==
 
 "@grpc/grpc-js@~1.9.0":
   version "1.9.16"

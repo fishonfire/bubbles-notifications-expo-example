@@ -4,8 +4,8 @@ import {
 } from '@fishonfire/bubbles-expo';
 import {
   createContext,
-  useEffect,
   useContext,
+  useEffect,
   useState,
   type ReactNode,
 } from 'react';
@@ -13,7 +13,7 @@ import { Platform } from 'react-native';
 
 const PENDING_APP_ID = '__bubbles_demo_app_id_pending__';
 const PENDING_APP_KEY = '__bubbles_demo_app_key_pending__';
-const CUSTOM_API_URL = 'http://192.168.1.94:4000';
+const CUSTOM_API_URL = undefined;
 const DEVICE_CONFIG_DEBOUNCE_MS = 250;
 
 interface DemoNotificationsContextValue {
