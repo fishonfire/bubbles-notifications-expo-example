@@ -57,3 +57,13 @@ npm run build
 ```
 
 The root app depends on the local package through `file:./bubbles-notifications-expo`.
+
+## Contributors
+- Simon de la Court (https://github.com/simondelacourt)
+- Jan Deen (https://github.com/Jan-F15H)
+- Menno Jongejan (https://github.com/mennolpFoF)
+
+## Copyright and Licence
+Copyright (c) 2026, Fish on Fire.
+
+Source code is licensed under the [`GPL License`](https://github.com/fishonfire/bubbles-notifications-expo-example/blob/develop/LICENSE).

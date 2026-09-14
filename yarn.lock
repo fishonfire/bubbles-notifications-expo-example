@@ -1456,8 +1456,10 @@
 "@fishonfire/bubbles-expo@file:../bubbles-notifications-expo":
   version "0.1.0"
   dependencies:
-    "@fishonfire/bubbles-js" "file:../../Library/Caches/Yarn/v6/npm-@fishonfire-bubbles-expo-0.1.0-52899198-8d91-4e5b-9a59-91e5b3b900f7-1788858877194/node_modules/@fishonfire/bubbles-notifications-js"
+    "@fishonfire/bubbles-js" "file:../../Library/Caches/Yarn/v6/npm-@fishonfire-bubbles-expo-0.1.0-fe70e5c6-79a4-406a-b830-c4dd86a84aaf-1788873257869/node_modules/@fishonfire/bubbles-notifications-js"
+    expo-application "~57.0.2"
     expo-constants "~57.0.16"
+    expo-device "~57.0.1"
     expo-file-system "~57.0.6"
 
 "@fishonfire/bubbles-js@file:../bubbles-notifications-js":
