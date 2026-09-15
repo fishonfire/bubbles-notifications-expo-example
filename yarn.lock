@@ -1453,13 +1453,15 @@
   resolved "https://registry.yarnpkg.com/@firebase/webchannel-wrapper/-/webchannel-wrapper-1.0.6.tgz#4be6a62b8c27a6bad8cc8da41f9a12de901e965d"
   integrity sha512-Vr/Mqu79dMwGRAyGbJ4uN4+BtXB3/mRTdzetD1daWNeG8QaWuzhhbG77GltO5c0yYmYls8i250iX73624GJd7Q==
 
-"@fishonfire/bubbles-expo@0.1.0":
-  version "0.1.0"
-  resolved "https://registry.yarnpkg.com/@fishonfire/bubbles-expo/-/bubbles-expo-0.1.0.tgz#1cc63681aeebf5d70e7722d3c12738fa49d6a631"
-  integrity sha512-RosrQJPVHDsrHVNo2N7/vyeD/+FhjVvvTA23WRNVhJsuf4t7J8IF/yr50BdYTYKMWnxhwxajCuVsMksZwzbDRw==
+"@fishonfire/bubbles-expo@0.1.1":
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/@fishonfire/bubbles-expo/-/bubbles-expo-0.1.1.tgz#30bb64dfdc84fa434b3f726f5e3f199d618b5ea3"
+  integrity sha512-y/3y9sL2SWY7NihP4e/PonjJSquKr62qcerKeGTiNzZ+1CTDpUt64Xxy4RXdu9el5637ULooKha4DgJ0MZrEDQ==
   dependencies:
     "@fishonfire/bubbles-js" "0.1.0"
+    expo-application "~57.0.2"
     expo-constants "~57.0.16"
+    expo-device "~57.0.1"
     expo-file-system "~57.0.6"
 
 "@fishonfire/bubbles-js@0.1.0":
