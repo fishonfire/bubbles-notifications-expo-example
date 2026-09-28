@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Link, type Href } from 'expo-router';
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -39,6 +39,9 @@ export default function HomeScreen() {
             </ThemedText>
             <Link href="/notification-example" style={styles.routeLink}>
               <ThemedText type="smallBold">Open notification route example</ThemedText>
+            </Link>
+            <Link href={'/device-attributes-example' as Href} style={styles.routeLink}>
+              <ThemedText type="smallBold">Open device attributes example</ThemedText>
             </Link>
           </ThemedView>
         </SafeAreaView>
